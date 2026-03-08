@@ -36,12 +36,14 @@ body {
   width: 50px;
   height: 50px;
   cursor: pointer;
-  transition: transform 0.3s ease, filter 0.3s ease;
+  transition: transform 0.3s ease;
 }
 
-[data-theme="dark"] .ggulook-sae {
-  /* 다크 모드에서 하얗게 빛나는 효과 */
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.9));
+/* 다크 모드에서 눈동자만 흰색으로 빛나게 설정 */
+[data-theme="dark"] .owl-eyes {
+  fill: white !important;
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 1));
+  transition: fill 0.3s ease, filter 0.3s ease;
 }
 
 .ggulook-sae:hover {
