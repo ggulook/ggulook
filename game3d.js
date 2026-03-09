@@ -7,8 +7,15 @@ let boostMultiplier = 1.5;
 let isBoosted = false;
 let boostTimer = 0;
 let score3d = 0;
-let keys = { w: false, a: false, s: false, d: false };
+let keys = { a: false, d: false };
 let isInitialized = false;
+
+// 3D 게임 오버 화면 요소
+const gameOver3dScreen = document.getElementById('game-over-3d-screen');
+const finalScore3dElement = document.getElementById('final-score-3d');
+const restart3dBtn = document.getElementById('restart-3d-btn');
+const home3dMenuBtn = document.getElementById('home-3d-menu-btn');
+
 
 function init3D() {
   if (isInitialized) return true;
@@ -19,6 +26,12 @@ function init3D() {
 
   const threeContainer = document.getElementById('three-container');
   if (!threeContainer) return false;
+
+    // 이전 렌더러가 있다면 삭제
+  while (threeContainer.firstChild) {
+    threeContainer.removeChild(threeContainer.firstChild);
+  }
+
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x87ceeb);
@@ -53,8 +66,12 @@ function init3D() {
   camera.position.set(0, 3, 5);
   camera.lookAt(player3d.position);
 
-  window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
-  window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+  window.addEventListener('keydown', (e) => { 
+    if(e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = true; 
+  });
+  window.addEventListener('keyup', (e) => { 
+    if(e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = false; 
+  });
   
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -99,10 +116,12 @@ function update3D() {
 
   const currentSpeed = isBoosted ? baseSpeed * boostMultiplier : baseSpeed;
   
-  if (keys.w) player3d.position.z -= currentSpeed;
-  if (keys.s) player3d.position.z += currentSpeed;
-  if (keys.a) player3d.position.x -= currentSpeed;
-  if (keys.d) player3d.position.x += currentSpeed;
+  // Player automatically moves forward
+  player3d.position.z -= currentSpeed;
+
+  // Sideways movement
+  if (keys.a) player3d.position.x -= moveSpeed;
+  if (keys.d) player3d.position.x += moveSpeed;
 
   player3d.position.x = Math.max(-9, Math.min(9, player3d.position.x));
 
@@ -118,8 +137,9 @@ function update3D() {
     }
   }
 
-  if (Math.random() < 0.05) spawnVaticanObstacle(player3d.position.z - 50);
-  if (Math.random() < 0.02) spawnStar(player3d.position.z - 50);
+  if (Math.random() < 0.05) spawnVaticanObstacle(player3d.position.z - 100);
+  if (Math.random() < 0.03) spawnStar(player3d.position.z - 80);
+
 
   const playerBox = new THREE.Box3().setFromObject(player3d);
 
@@ -153,6 +173,9 @@ function update3D() {
       stars3d.splice(i, 1);
       score3d += 5;
       document.getElementById('score-3d').textContent = `Score: ${score3d}`;
+    } else if (star.position.z > player3d.position.z + 10) {
+      scene.remove(star);
+      stars3d.splice(i, 1);
     }
   }
 
@@ -171,24 +194,33 @@ function start3DGame() {
   document.getElementById('score-3d').textContent = `Score: ${score3d}`;
   player3d.position.set(0, 0.5, 0);
   
+  gameOver3dScreen.classList.add('hidden');
+
   obstacles3d.forEach(o => scene.remove(o));
   stars3d.forEach(s => scene.remove(s));
   obstacles3d = [];
   stars3d = [];
   
+  // Reset keys
+  keys.a = false;
+  keys.d = false;
+
   update3D();
 }
 
 function gameOver3D() {
   game3dActive = false;
-  alert(`Game Over! Final Score: ${score3d}`);
-  stop3DAndReturn();
+  finalScore3dElement.textContent = `Score: ${score3d}`;
+  gameOver3dScreen.classList.remove('hidden');
 }
 
 function stop3DAndReturn() {
   game3dActive = false;
+  gameOver3dScreen.classList.add('hidden');
   document.getElementById('game-3d-screen').classList.add('hidden');
   document.getElementById('main-menu').classList.remove('hidden');
 }
 
 document.getElementById('home-3d-btn').addEventListener('click', stop3DAndReturn);
+restart3dBtn.addEventListener('click', start3DGame);
+home3dMenuBtn.addEventListener('click', stop3DAndReturn);
