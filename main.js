@@ -47,10 +47,19 @@ function updateButtonText(theme) {
   themeToggle.textContent = theme === 'dark' ? '화이트 모드로 전환' : '다크 모드로 전환';
 }
 
+const btnGgulook3d = document.getElementById('btn-ggulook-3d');
+const game3dScreen = document.getElementById('game-3d-screen');
+
 // 메뉴 로직
 btnGgulookJump.addEventListener('click', () => {
   mainMenu.classList.add('hidden');
   gameScreen.classList.remove('hidden');
+});
+
+btnGgulook3d.addEventListener('click', () => {
+  mainMenu.classList.add('hidden');
+  game3dScreen.classList.remove('hidden');
+  if (typeof start3DGame === 'function') start3DGame();
 });
 
 homeBtn.addEventListener('click', () => {
