@@ -5,7 +5,11 @@ const gameMessage = document.getElementById('game-message');
 const gameOverScreen = document.getElementById('game-over-screen');
 const finalScoreElement = document.getElementById('final-score');
 const restartBtn = document.getElementById('restart-btn');
+const homeBtn = document.getElementById('home-btn');
 const themeToggle = document.getElementById('theme-toggle');
+const mainMenu = document.getElementById('main-menu');
+const gameScreen = document.getElementById('game-screen');
+const btnGgulookJump = document.getElementById('btn-ggulook-jump');
 const body = document.body;
 
 // 게임 설정
@@ -14,12 +18,12 @@ const JUMP_STRENGTH = -10;
 const SPAWN_RATE = 1500; // ms
 const MIN_OBSTACLE_HEIGHT = 30;
 const MAX_OBSTACLE_HEIGHT = 80;
-const HITBOX_PADDING = 8; // 히트박스 축소 보정 (픽셀)
-const MAX_JUMPS = 2; // 최대 점프 가능 횟수 (이단 점프)
+const HITBOX_PADDING = 8; // 히트박스 축소 보정
+const MAX_JUMPS = 2; // 이단 점프
 
 let playerY = 0;
 let playerVelocity = 0;
-let jumpCount = 0; // 현재 점프 횟수
+let jumpCount = 0;
 let score = 0;
 let gameActive = false;
 let obstacles = [];
@@ -43,8 +47,38 @@ function updateButtonText(theme) {
   themeToggle.textContent = theme === 'dark' ? '화이트 모드로 전환' : '다크 모드로 전환';
 }
 
-// 점프 로직 (이단 점프 가능)
+// 메뉴 로직
+btnGgulookJump.addEventListener('click', () => {
+  mainMenu.classList.add('hidden');
+  gameScreen.classList.remove('hidden');
+});
+
+homeBtn.addEventListener('click', () => {
+  gameActive = false;
+  cancelAnimationFrame(animationFrameId);
+  gameScreen.classList.add('hidden');
+  mainMenu.classList.remove('hidden');
+  resetGameState();
+});
+
+function resetGameState() {
+  obstacles.forEach(obs => obs.remove());
+  obstacles = [];
+  playerY = 0;
+  playerVelocity = 0;
+  jumpCount = 0;
+  score = 0;
+  scoreElement.textContent = `Score: ${score}`;
+  player.style.bottom = '50px';
+  player.style.transform = 'rotate(0deg)';
+  gameMessage.classList.remove('hidden');
+  gameOverScreen.classList.add('hidden');
+}
+
+// 점프 로직
 function jump() {
+  if (gameScreen.classList.contains('hidden')) return;
+  
   if (!gameActive) {
     startGame();
     return;
@@ -89,14 +123,13 @@ function spawnObstacle() {
 }
 
 function updateObstacles() {
-  const speed = 5 + (score / 10); // 점수가 오를수록 빨라짐
+  const speed = 5 + (score / 10);
   
   for (let i = obstacles.length - 1; i >= 0; i--) {
     const obstacle = obstacles[i];
     const currentRight = parseFloat(obstacle.style.right);
     obstacle.style.right = `${currentRight + speed}px`;
 
-    // 충돌 감지 (히트박스 보정 적용)
     const playerRect = player.getBoundingClientRect();
     const obstacleRect = obstacle.getBoundingClientRect();
 
@@ -108,7 +141,6 @@ function updateObstacles() {
       gameOver();
     }
 
-    // 화면 밖으로 나간 장애물 제거 및 점수 획득
     if (currentRight > 850) {
       obstacle.remove();
       obstacles.splice(i, 1);
@@ -121,21 +153,18 @@ function updateObstacles() {
 function gameLoop(timestamp) {
   if (!gameActive) return;
 
-  // 플레이어 물리 엔진
   playerVelocity += GRAVITY;
   playerY += playerVelocity;
 
-  // 지면 착지 판정
   if (playerY > 0) {
     playerY = 0;
     playerVelocity = 0;
-    jumpCount = 0; // 점프 횟수 초기화
+    jumpCount = 0;
     player.style.transform = 'rotate(0deg)';
   }
 
   player.style.bottom = `${50 - playerY}px`;
 
-  // 장애물 생성
   if (timestamp - lastSpawnTime > SPAWN_RATE) {
     spawnObstacle();
     lastSpawnTime = timestamp;
