@@ -8,14 +8,20 @@ let isBoosted = false;
 let boostTimer = 0;
 let score3d = 0;
 let keys = { w: false, a: false, s: false, d: false };
-
-const threeContainer = document.getElementById('three-container');
-const score3dElement = document.getElementById('score-3d');
-const speedIndicator = document.getElementById('speed-indicator');
+let isInitialized = false;
 
 function init3D() {
+  if (isInitialized) return true;
+  if (typeof THREE === 'undefined') {
+    console.error('Three.js is not loaded');
+    return false;
+  }
+
+  const threeContainer = document.getElementById('three-container');
+  if (!threeContainer) return false;
+
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x87ceeb); // Sky blue
+  scene.background = new THREE.Color(0x87ceeb);
   scene.fog = new THREE.Fog(0x87ceeb, 10, 50);
 
   camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -30,14 +36,14 @@ function init3D() {
   sunLight.position.set(5, 10, 7.5);
   scene.add(sunLight);
 
-  // Ground (Piazza)
+  // Ground
   const groundGeo = new THREE.PlaneGeometry(20, 1000);
   const groundMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
 
-  // Player (A simple bird-like or orb shape representing Ggulook)
+  // Player
   const playerGeo = new THREE.SphereGeometry(0.5, 32, 32);
   const playerMat = new THREE.MeshStandardMaterial({ color: 0x662113 });
   player3d = new THREE.Mesh(playerGeo, playerMat);
@@ -49,10 +55,18 @@ function init3D() {
 
   window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
   window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+  
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  isInitialized = true;
+  return true;
 }
 
 function spawnVaticanObstacle(zPos) {
-  // Simple representation: Columns or small Domes
   const isDome = Math.random() > 0.5;
   let mesh;
   
@@ -83,7 +97,6 @@ function spawnStar(zPos) {
 function update3D() {
   if (!game3dActive) return;
 
-  // Movement
   const currentSpeed = isBoosted ? baseSpeed * boostMultiplier : baseSpeed;
   
   if (keys.w) player3d.position.z -= currentSpeed;
@@ -91,28 +104,23 @@ function update3D() {
   if (keys.a) player3d.position.x -= currentSpeed;
   if (keys.d) player3d.position.x += currentSpeed;
 
-  // Boundary check
   player3d.position.x = Math.max(-9, Math.min(9, player3d.position.x));
 
-  // Camera follow
   camera.position.z = player3d.position.z + 5;
   camera.position.x = player3d.position.x * 0.5;
   camera.lookAt(player3d.position.x, 1, player3d.position.z - 5);
 
-  // Boost logic
   if (isBoosted) {
     boostTimer--;
     if (boostTimer <= 0) {
       isBoosted = false;
-      speedIndicator.classList.add('hidden');
+      document.getElementById('speed-indicator').classList.add('hidden');
     }
   }
 
-  // Obstacle/Star spawn
   if (Math.random() < 0.05) spawnVaticanObstacle(player3d.position.z - 50);
   if (Math.random() < 0.02) spawnStar(player3d.position.z - 50);
 
-  // Collision Detection
   const playerBox = new THREE.Box3().setFromObject(player3d);
 
   for (let i = obstacles3d.length - 1; i >= 0; i--) {
@@ -121,14 +129,14 @@ function update3D() {
     
     if (playerBox.intersectsBox(obsBox)) {
       gameOver3D();
+      return;
     }
 
-    // Cleanup
     if (obs.position.z > player3d.position.z + 10) {
       scene.remove(obs);
       obstacles3d.splice(i, 1);
       score3d++;
-      score3dElement.textContent = `Score: ${score3d}`;
+      document.getElementById('score-3d').textContent = `Score: ${score3d}`;
     }
   }
 
@@ -139,12 +147,12 @@ function update3D() {
 
     if (playerBox.intersectsBox(starBox)) {
       isBoosted = true;
-      boostTimer = 300; // ~5 seconds at 60fps
-      speedIndicator.classList.remove('hidden');
+      boostTimer = 300;
+      document.getElementById('speed-indicator').classList.remove('hidden');
       scene.remove(star);
       stars3d.splice(i, 1);
       score3d += 5;
-      score3dElement.textContent = `Score: ${score3d}`;
+      document.getElementById('score-3d').textContent = `Score: ${score3d}`;
     }
   }
 
@@ -153,12 +161,16 @@ function update3D() {
 }
 
 function start3DGame() {
+  if (!init3D()) {
+    alert('3D 엔진을 초기화할 수 없습니다.');
+    return;
+  }
+  
   game3dActive = true;
   score3d = 0;
-  score3dElement.textContent = `Score: ${score3d}`;
+  document.getElementById('score-3d').textContent = `Score: ${score3d}`;
   player3d.position.set(0, 0.5, 0);
   
-  // Clear old objects
   obstacles3d.forEach(o => scene.remove(o));
   stars3d.forEach(s => scene.remove(s));
   obstacles3d = [];
@@ -180,6 +192,3 @@ function stop3DAndReturn() {
 }
 
 document.getElementById('home-3d-btn').addEventListener('click', stop3DAndReturn);
-
-// Initialize but don't start loop yet
-init3D();
