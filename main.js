@@ -14,10 +14,12 @@ const JUMP_STRENGTH = -10;
 const SPAWN_RATE = 1500; // ms
 const MIN_OBSTACLE_HEIGHT = 30;
 const MAX_OBSTACLE_HEIGHT = 80;
+const HITBOX_PADDING = 8; // 히트박스 축소 보정 (픽셀)
+const MAX_JUMPS = 2; // 최대 점프 가능 횟수 (이단 점프)
 
 let playerY = 0;
 let playerVelocity = 0;
-let isJumping = false;
+let jumpCount = 0; // 현재 점프 횟수
 let score = 0;
 let gameActive = false;
 let obstacles = [];
@@ -41,15 +43,15 @@ function updateButtonText(theme) {
   themeToggle.textContent = theme === 'dark' ? '화이트 모드로 전환' : '다크 모드로 전환';
 }
 
-// 점프 로직
+// 점프 로직 (이단 점프 가능)
 function jump() {
   if (!gameActive) {
     startGame();
     return;
   }
-  if (!isJumping) {
+  if (jumpCount < MAX_JUMPS) {
     playerVelocity = JUMP_STRENGTH;
-    isJumping = true;
+    jumpCount++;
     player.style.transform = 'rotate(-20deg)';
   }
 }
@@ -59,6 +61,7 @@ function startGame() {
   score = 0;
   playerY = 0;
   playerVelocity = 0;
+  jumpCount = 0;
   obstacles.forEach(obs => obs.remove());
   obstacles = [];
   scoreElement.textContent = `Score: ${score}`;
@@ -85,7 +88,7 @@ function spawnObstacle() {
   obstacles.push(obstacle);
 }
 
-function updateObstacles(deltaTime) {
+function updateObstacles() {
   const speed = 5 + (score / 10); // 점수가 오를수록 빨라짐
   
   for (let i = obstacles.length - 1; i >= 0; i--) {
@@ -93,14 +96,14 @@ function updateObstacles(deltaTime) {
     const currentRight = parseFloat(obstacle.style.right);
     obstacle.style.right = `${currentRight + speed}px`;
 
-    // 충돌 감지
+    // 충돌 감지 (히트박스 보정 적용)
     const playerRect = player.getBoundingClientRect();
     const obstacleRect = obstacle.getBoundingClientRect();
 
     if (
-      playerRect.left < obstacleRect.right &&
-      playerRect.right > obstacleRect.left &&
-      playerRect.bottom > obstacleRect.top
+      playerRect.left + HITBOX_PADDING < obstacleRect.right - HITBOX_PADDING &&
+      playerRect.right - HITBOX_PADDING > obstacleRect.left + HITBOX_PADDING &&
+      playerRect.bottom - HITBOX_PADDING > obstacleRect.top + HITBOX_PADDING
     ) {
       gameOver();
     }
@@ -122,10 +125,11 @@ function gameLoop(timestamp) {
   playerVelocity += GRAVITY;
   playerY += playerVelocity;
 
+  // 지면 착지 판정
   if (playerY > 0) {
     playerY = 0;
     playerVelocity = 0;
-    isJumping = false;
+    jumpCount = 0; // 점프 횟수 초기화
     player.style.transform = 'rotate(0deg)';
   }
 
