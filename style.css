@@ -86,7 +86,7 @@ body {
   object-fit: fill;
   pointer-events: none;
   z-index: 61;
-  mix-blend-mode: multiply;
+  /* mix-blend-mode 불필요 - PNG 알파 투명도 사용 */
 }
 
 #face-window-ui {
