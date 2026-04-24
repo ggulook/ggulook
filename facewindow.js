@@ -5,8 +5,8 @@ let fwScene, fwCamera, fwRenderer, fwFaceLandmarker;
 let fwActive = false;
 let fwVideo;
 let fwCurrentX = 0, fwCurrentY = 0;
-let fwCanopies = [];  // 나무 윗부분 (흔들림용)
-let fwClouds = [];    // 구름 (이동용)
+let fwCanopies = [];
+let fwClouds = [];
 let fwClock = 0;
 
 const SENSITIVITY = 5;
@@ -17,101 +17,132 @@ function buildScene() {
     const container = document.getElementById('face-window-container');
 
     fwScene = new T.Scene();
-    fwScene.background = new T.Color(0x87ceeb);
 
-    fwCamera = new T.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 200);
+    fwCamera = new T.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 20000);
     fwCamera.position.set(0, 0, 0);
 
     fwRenderer = new T.WebGLRenderer({ antialias: true });
     fwRenderer.setSize(container.clientWidth, container.clientHeight);
     fwRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    fwRenderer.shadowMap.enabled = true;
+    fwRenderer.shadowMap.type = T.PCFSoftShadowMap;
+    fwRenderer.toneMapping = T.ACESFilmicToneMapping;
+    fwRenderer.toneMappingExposure = 0.6;
     container.appendChild(fwRenderer.domElement);
 
-    // Lighting
-    fwScene.add(new T.AmbientLight(0xffffff, 0.7));
-    const sun = new T.DirectionalLight(0xfffbe0, 1.0);
-    sun.position.set(10, 20, -10);
+    // 물리 기반 하늘 (Rayleigh 대기 산란)
+    const sky = new T.Sky();
+    sky.scale.setScalar(10000);
+    fwScene.add(sky);
+    const su = sky.material.uniforms;
+    su['turbidity'].value = 6;
+    su['rayleigh'].value = 2.5;
+    su['mieCoefficient'].value = 0.004;
+    su['mieDirectionalG'].value = 0.85;
+    const sunDir = new T.Vector3();
+    sunDir.setFromSphericalCoords(1,
+        T.MathUtils.degToRad(90 - 40),
+        T.MathUtils.degToRad(200)
+    );
+    su['sunPosition'].value.copy(sunDir);
+
+    // 조명
+    fwScene.add(new T.AmbientLight(0xffeedd, 0.25));
+    fwScene.add(new T.HemisphereLight(0x87ceeb, 0x4a7c59, 0.6));
+    const sun = new T.DirectionalLight(0xfff4e0, 2.5);
+    sun.position.copy(sunDir).multiplyScalar(200);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 300;
+    sun.shadow.camera.left = -60;
+    sun.shadow.camera.right = 60;
+    sun.shadow.camera.top = 60;
+    sun.shadow.camera.bottom = -60;
+    sun.shadow.bias = -0.0005;
     fwScene.add(sun);
 
-    // Sky sphere (inside face)
-    fwScene.add(new T.Mesh(
-        new T.SphereGeometry(100, 16, 16),
-        new T.MeshBasicMaterial({ color: 0x87ceeb, side: T.BackSide })
-    ));
-
-    // Ground
-    const ground = new T.Mesh(
-        new T.PlaneGeometry(200, 200),
-        new T.MeshLambertMaterial({ color: 0x4a7c59 })
+    // 풀밭 (텍스처)
+    const texLoader = new T.TextureLoader();
+    const grassMat = new T.MeshStandardMaterial({ color: 0x4a7c59, roughness: 1, metalness: 0 });
+    const grassTex = texLoader.load(
+        'https://raw.githubusercontent.com/mrdoob/three.js/r128/examples/textures/terrain/grasslight-big.jpg',
+        tex => {
+            tex.wrapS = tex.wrapT = T.RepeatWrapping;
+            tex.repeat.set(30, 30);
+            grassMat.map = tex;
+            grassMat.needsUpdate = true;
+        }
     );
+    const ground = new T.Mesh(new T.PlaneGeometry(400, 400), grassMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -4;
+    ground.receiveShadow = true;
     fwScene.add(ground);
 
-    // Trees
+    // 나무
     fwCanopies = [];
     const treeDefs = [
         [-8, -4, -18], [8, -4, -18], [-4, -4, -22], [5, -4, -20],
         [-13, -4, -14], [13, -4, -14], [0, -4, -28],
         [-6, -4, -32], [7, -4, -30], [-16, -4, -24], [16, -4, -26]
     ];
-    treeDefs.forEach(([x, y, z]) => {
+    const trunkMat = new T.MeshStandardMaterial({ color: 0x5c3317, roughness: 0.9 });
+    const leafColors = [0x2d6a1f, 0x3a7a28, 0x1e5e15, 0x4a8c2a];
+    treeDefs.forEach(([x, y, z], idx) => {
         const h = 2.5 + Math.random() * 2;
-        const trunk = new T.Mesh(
-            new T.CylinderGeometry(0.12, 0.18, h * 0.35, 6),
-            new T.MeshLambertMaterial({ color: 0x6b3a1f })
-        );
-        trunk.position.set(x, y + h * 0.175, z);
+        const trunk = new T.Mesh(new T.CylinderGeometry(0.12, 0.2, h * 0.4, 7), trunkMat);
+        trunk.position.set(x, y + h * 0.2, z);
+        trunk.castShadow = true;
         fwScene.add(trunk);
 
-        const canopy = new T.Mesh(
-            new T.ConeGeometry(1.1 + Math.random() * 0.6, h * 0.9, 8),
-            new T.MeshLambertMaterial({ color: 0x2a5e1a })
-        );
-        canopy.position.set(x, y + h * 0.6, z);
-        canopy.userData.swayOffset = Math.random() * Math.PI * 2; // 나무마다 다른 위상
-        canopy.userData.swaySpeed = 0.6 + Math.random() * 0.4;
-        fwScene.add(canopy);
-        fwCanopies.push(canopy);
+        // 2겹 캐노피 (더 풍성하게)
+        [0.9, 0.65].forEach((scale, layer) => {
+            const canopy = new T.Mesh(
+                new T.ConeGeometry((1.2 + Math.random() * 0.5) * scale, h * scale, 8),
+                new T.MeshStandardMaterial({ color: leafColors[idx % 4], roughness: 0.9 })
+            );
+            canopy.position.set(x, y + h * (0.55 + layer * 0.25), z);
+            canopy.castShadow = true;
+            canopy.receiveShadow = true;
+            canopy.userData.swayOffset = Math.random() * Math.PI * 2 + layer;
+            canopy.userData.swaySpeed = 0.5 + Math.random() * 0.4;
+            fwScene.add(canopy);
+            fwCanopies.push(canopy);
+        });
     });
 
-    // Distant mountains
-    const mtColors = [0x4a5e2a, 0x3a4d20, 0x556b35];
-    [[-28, -3, -60], [-12, -2, -65], [6, -2.5, -62], [22, -3, -58], [38, -3, -60]].forEach(([x, y, z], i) => {
-        const s = 9 + (i % 3) * 3;
+    // 원경 산
+    const mtColors = [0x3d5220, 0x2e4018, 0x4a5e28];
+    [[-28,-4,-70],[-12,-3,-78],[6,-3.5,-74],[22,-4,-68],[38,-4,-72],[-50,-4,-90],[50,-4,-85]].forEach(([x,y,z],i) => {
+        const s = 10 + (i % 3) * 4;
         const mtn = new T.Mesh(
-            new T.ConeGeometry(s, s * 1.8, 7),
-            new T.MeshLambertMaterial({ color: mtColors[i % 3] })
+            new T.ConeGeometry(s, s * 2, 7),
+            new T.MeshStandardMaterial({ color: mtColors[i % 3], roughness: 1 })
         );
         mtn.position.set(x, y, z);
         fwScene.add(mtn);
     });
 
-    // Clouds
+    // 구름
     fwClouds = [];
-    const cloudDefs = [
-        [-20, 12, -40, 1.2], [5, 15, -50, 1.0], [25, 11, -45, 0.8],
-        [-35, 14, -55, 1.4], [15, 13, -35, 0.9], [-8, 16, -60, 1.1]
-    ];
-    const cloudMat = new T.MeshLambertMaterial({ color: 0xffffff });
-    cloudDefs.forEach(([x, y, z, scale]) => {
-        const group = new T.Group();
-        // 구름 = 여러 개의 구체 뭉침
+    const cloudMat = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
+    [[-20,12,-40,1.2],[5,15,-50,1.0],[25,11,-45,0.8],[-35,14,-55,1.4],[15,13,-35,0.9],[-8,16,-60,1.1]].forEach(([x,y,z,sc]) => {
+        const g = new T.Group();
         [[0,0,0,1],[1.2,0.2,0,0.8],[-1.1,0.1,0,0.75],[0.5,0.6,0,0.7],[-0.4,0.5,0,0.65]].forEach(([dx,dy,dz,r]) => {
-            const sphere = new T.Mesh(new T.SphereGeometry(r * scale, 7, 7), cloudMat);
-            sphere.position.set(dx * scale, dy * scale, dz * scale);
-            group.add(sphere);
+            const s = new T.Mesh(new T.SphereGeometry(r*sc,7,7), cloudMat);
+            s.position.set(dx*sc, dy*sc, dz*sc);
+            g.add(s);
         });
-        group.position.set(x, y, z);
-        group.userData.speed = 0.008 + Math.random() * 0.006;
-        fwScene.add(group);
-        fwClouds.push(group);
+        g.position.set(x, y, z);
+        g.userData.speed = 0.008 + Math.random() * 0.006;
+        fwScene.add(g);
+        fwClouds.push(g);
     });
 }
 
 async function startFaceTracking() {
     const statusEl = document.getElementById('face-window-status');
-
     statusEl.textContent = '모델 로딩 중...';
     const filesetResolver = await FilesetResolver.forVisionTasks(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm"
@@ -124,7 +155,6 @@ async function startFaceTracking() {
         runningMode: "VIDEO",
         numFaces: 1
     });
-
     statusEl.textContent = '카메라 권한 요청 중...';
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
     fwVideo = document.getElementById('face-window-video');
@@ -152,17 +182,14 @@ function detectFace() {
 
 function renderLoop() {
     if (!fwActive || !fwRenderer) return;
-
     fwClock += 0.016;
 
-    // 나무 흔들림
-    fwCanopies.forEach(canopy => {
-        const t = fwClock * canopy.userData.swaySpeed + canopy.userData.swayOffset;
-        canopy.rotation.z = Math.sin(t) * 0.06;
-        canopy.rotation.x = Math.sin(t * 0.7) * 0.03;
+    fwCanopies.forEach(c => {
+        const t = fwClock * c.userData.swaySpeed + c.userData.swayOffset;
+        c.rotation.z = Math.sin(t) * 0.06;
+        c.rotation.x = Math.sin(t * 0.7) * 0.03;
     });
 
-    // 구름 이동
     fwClouds.forEach(cloud => {
         cloud.position.x += cloud.userData.speed;
         if (cloud.position.x > 60) cloud.position.x = -60;
@@ -202,21 +229,16 @@ function initFaceWindow() {
 function stopFaceWindow() {
     fwActive = false;
     window.removeEventListener('resize', handleResize);
-
     if (fwVideo?.srcObject) {
         fwVideo.srcObject.getTracks().forEach(t => t.stop());
         fwVideo.srcObject = null;
     }
-
     if (fwRenderer) {
         const container = document.getElementById('face-window-container');
-        if (container?.contains(fwRenderer.domElement)) {
-            container.removeChild(fwRenderer.domElement);
-        }
+        if (container?.contains(fwRenderer.domElement)) container.removeChild(fwRenderer.domElement);
         fwRenderer.dispose();
         fwRenderer = null;
     }
-
     fwScene = null;
     fwCamera = null;
     fwFaceLandmarker = null;
@@ -224,7 +246,6 @@ function stopFaceWindow() {
     fwClouds = [];
 }
 
-// Wire up buttons (DOM is ready by the time this module executes)
 document.getElementById('btn-face-window').addEventListener('click', () => {
     document.getElementById('main-menu').classList.add('hidden');
     document.getElementById('face-window-screen').classList.remove('hidden');
