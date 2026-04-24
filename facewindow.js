@@ -5,6 +5,9 @@ let fwScene, fwCamera, fwRenderer, fwFaceLandmarker;
 let fwActive = false;
 let fwVideo;
 let fwCurrentX = 0, fwCurrentY = 0;
+let fwCanopies = [];  // 나무 윗부분 (흔들림용)
+let fwClouds = [];    // 구름 (이동용)
+let fwClock = 0;
 
 const SENSITIVITY = 5;
 const LERP = 0.08;
@@ -46,6 +49,7 @@ function buildScene() {
     fwScene.add(ground);
 
     // Trees
+    fwCanopies = [];
     const treeDefs = [
         [-8, -4, -18], [8, -4, -18], [-4, -4, -22], [5, -4, -20],
         [-13, -4, -14], [13, -4, -14], [0, -4, -28],
@@ -65,7 +69,10 @@ function buildScene() {
             new T.MeshLambertMaterial({ color: 0x2a5e1a })
         );
         canopy.position.set(x, y + h * 0.6, z);
+        canopy.userData.swayOffset = Math.random() * Math.PI * 2; // 나무마다 다른 위상
+        canopy.userData.swaySpeed = 0.6 + Math.random() * 0.4;
         fwScene.add(canopy);
+        fwCanopies.push(canopy);
     });
 
     // Distant mountains
@@ -78,6 +85,27 @@ function buildScene() {
         );
         mtn.position.set(x, y, z);
         fwScene.add(mtn);
+    });
+
+    // Clouds
+    fwClouds = [];
+    const cloudDefs = [
+        [-20, 12, -40, 1.2], [5, 15, -50, 1.0], [25, 11, -45, 0.8],
+        [-35, 14, -55, 1.4], [15, 13, -35, 0.9], [-8, 16, -60, 1.1]
+    ];
+    const cloudMat = new T.MeshLambertMaterial({ color: 0xffffff });
+    cloudDefs.forEach(([x, y, z, scale]) => {
+        const group = new T.Group();
+        // 구름 = 여러 개의 구체 뭉침
+        [[0,0,0,1],[1.2,0.2,0,0.8],[-1.1,0.1,0,0.75],[0.5,0.6,0,0.7],[-0.4,0.5,0,0.65]].forEach(([dx,dy,dz,r]) => {
+            const sphere = new T.Mesh(new T.SphereGeometry(r * scale, 7, 7), cloudMat);
+            sphere.position.set(dx * scale, dy * scale, dz * scale);
+            group.add(sphere);
+        });
+        group.position.set(x, y, z);
+        group.userData.speed = 0.008 + Math.random() * 0.006;
+        fwScene.add(group);
+        fwClouds.push(group);
     });
 }
 
@@ -124,6 +152,22 @@ function detectFace() {
 
 function renderLoop() {
     if (!fwActive || !fwRenderer) return;
+
+    fwClock += 0.016;
+
+    // 나무 흔들림
+    fwCanopies.forEach(canopy => {
+        const t = fwClock * canopy.userData.swaySpeed + canopy.userData.swayOffset;
+        canopy.rotation.z = Math.sin(t) * 0.06;
+        canopy.rotation.x = Math.sin(t * 0.7) * 0.03;
+    });
+
+    // 구름 이동
+    fwClouds.forEach(cloud => {
+        cloud.position.x += cloud.userData.speed;
+        if (cloud.position.x > 60) cloud.position.x = -60;
+    });
+
     fwCamera.position.x = fwCurrentX;
     fwCamera.position.y = fwCurrentY;
     fwCamera.lookAt(fwCurrentX * 0.2, fwCurrentY * 0.2, -10);
@@ -144,6 +188,7 @@ function initFaceWindow() {
     fwActive = true;
     fwCurrentX = 0;
     fwCurrentY = 0;
+    fwClock = 0;
     buildScene();
     renderLoop();
     window.addEventListener('resize', handleResize);
@@ -175,6 +220,8 @@ function stopFaceWindow() {
     fwScene = null;
     fwCamera = null;
     fwFaceLandmarker = null;
+    fwCanopies = [];
+    fwClouds = [];
 }
 
 // Wire up buttons (DOM is ready by the time this module executes)
