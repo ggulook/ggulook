@@ -77,16 +77,12 @@ body {
   height: 100%;
 }
 
-/* 나무 창틀 이미지 */
-#face-window-frame {
+/* 새총 캔버스 */
+#slingshot-canvas {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
-  pointer-events: none;
+  pointer-events: auto;
   z-index: 61;
-  /* mix-blend-mode 불필요 - PNG 알파 투명도 사용 */
 }
 
 #face-window-ui {

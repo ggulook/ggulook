@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Face Window</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -13,14 +13,14 @@
     <div class="game-card" id="btn-face-window">
       <div class="card-icon">🪟</div>
       <h3>시작하기</h3>
-      <p>얼굴 추적으로 창문 밖 3D 풍경을 감상하세요!</p>
+      <p>새총을 당겨서 하늘을 날아보세요!</p>
     </div>
   </div>
 
-  <!-- 얼굴 추적 창문 화면 -->
+  <!-- 3D 화면 -->
   <div id="face-window-screen" class="hidden">
     <div id="face-window-container"></div>
-    <img id="face-window-frame" src="window-frame.png" alt="">
+    <canvas id="slingshot-canvas"></canvas>
     <video id="face-window-video" autoplay playsinline muted style="display:none;"></video>
     <div id="face-window-ui">
       <div id="face-window-status">초기화 중...</div>
