@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ggulook Game Studio</title>
+  <title>Ggulook</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body data-theme="light">
@@ -11,8 +11,28 @@
     <button id="theme-toggle">다크 모드로 전환</button>
   </div>
 
-  <!-- 메인 메뉴 -->
-  <div id="main-menu" class="menu-container">
+  <!-- ★ 역할 선택 화면 (첫 화면) -->
+  <div id="role-select-screen">
+    <h1 class="app-title">GGULOOK</h1>
+    <p class="role-subtitle">당신의 역할을 선택해주세요</p>
+    <div class="role-cards">
+      <div class="role-card" id="btn-alba-role">
+        <div class="role-icon">👷</div>
+        <h3>알바생</h3>
+        <p>근무 일정과 월급을 확인해요</p>
+      </div>
+      <div class="role-card" id="btn-boss-role">
+        <div class="role-icon">👔</div>
+        <h3>사장님</h3>
+        <p>직원 스케줄과 급여를 관리해요</p>
+      </div>
+    </div>
+    <button id="btn-games-mode" class="games-link">🎮 게임 모드</button>
+  </div>
+
+  <!-- 게임 메인 메뉴 (역할선택에서 진입) -->
+  <div id="main-menu" class="menu-container hidden">
+    <button class="back-btn back-to-role-btn" id="game-menu-back">← 역할 선택</button>
     <h1>GGULOOK STUDIO</h1>
     <div class="game-selector">
       <div class="game-card" id="btn-ggulook-jump">
@@ -70,8 +90,181 @@
     </div>
   </div>
 
+  <!-- ★ 알바생 화면 -->
+  <div id="alba-screen" class="full-screen hidden">
+    <!-- 최초 설정 -->
+    <div id="alba-setup" class="setup-container hidden">
+      <button class="back-btn back-to-role-btn">← 역할 선택</button>
+      <h2 class="setup-title">기본 정보 입력</h2>
+      <div class="form-group">
+        <label class="form-label">이름</label>
+        <input type="text" id="alba-name-input" class="form-input" placeholder="이름을 입력하세요">
+      </div>
+      <div class="form-group">
+        <label class="form-label">시급 (원)</label>
+        <input type="number" id="alba-wage-input" class="form-input" placeholder="예: 10030" min="0">
+      </div>
+      <button id="alba-setup-save" class="primary-btn">저장하고 시작</button>
+    </div>
+
+    <!-- 알바생 메인 -->
+    <div id="alba-main" class="hidden">
+      <div class="app-header">
+        <button class="back-to-role-btn icon-btn">←</button>
+        <span id="alba-user-name" class="header-title">알바생</span>
+        <button id="alba-reset-btn" class="icon-btn">⚙️</button>
+      </div>
+      <div class="tab-nav">
+        <button class="tab-btn active" data-target="alba-home-content">홈</button>
+        <button class="tab-btn" data-target="alba-cal-content">캘린더</button>
+      </div>
+      <div class="tab-body">
+        <!-- 홈 탭 -->
+        <div id="alba-home-content" class="tab-content">
+          <div class="month-nav">
+            <button id="alba-month-prev" class="month-nav-btn">‹</button>
+            <span id="alba-home-month-label" class="month-label-text">2026년 5월</span>
+            <button id="alba-month-next" class="month-nav-btn">›</button>
+          </div>
+          <div class="salary-hero-card">
+            <p class="salary-label">이번달 예상 월급</p>
+            <h2 class="salary-amount" id="alba-monthly-salary">₩0</h2>
+            <p class="salary-detail" id="alba-work-summary">총 0시간 근무 · 시급 ₩0</p>
+          </div>
+          <div class="section-title">이번달 근무 현황</div>
+          <div id="alba-monthly-cal" class="mini-calendar"></div>
+        </div>
+
+        <!-- 캘린더 탭 -->
+        <div id="alba-cal-content" class="tab-content hidden">
+          <div class="month-nav">
+            <button id="alba-cal-prev" class="month-nav-btn">‹</button>
+            <span id="alba-cal-month-label" class="month-label-text">2026년 5월</span>
+            <button id="alba-cal-next" class="month-nav-btn">›</button>
+          </div>
+          <div id="alba-calendar-grid" class="calendar-grid"></div>
+          <!-- 주간 52시간 요약 -->
+          <div class="weekly-box">
+            <div class="section-title">이번 주 근로시간</div>
+            <div class="summary-row">
+              <span class="summary-label">주간 총 근로시간</span>
+              <span id="alba-weekly-total" class="summary-value">0 / 52시간</span>
+            </div>
+            <div class="progress-bar-wrap">
+              <div id="alba-weekly-progress" class="progress-fill"></div>
+            </div>
+            <div id="alba-limit-warning" class="limit-warning hidden">
+              ⚠️ 52시간이 법적으로 일할 수 있는 최대치입니다
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 날짜 입력 모달 (알바생) -->
+    <div id="alba-date-modal" class="modal-overlay hidden">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <span id="alba-modal-date-title" class="modal-title">5월 13일</span>
+          <button id="alba-modal-close" class="close-btn">✕</button>
+        </div>
+        <div class="form-group">
+          <label class="form-label">근로시간 (시간)</label>
+          <input type="number" id="alba-modal-hours" class="form-input" placeholder="0" min="0" max="24" step="0.5">
+        </div>
+        <div id="alba-modal-break-info" class="break-info-row"></div>
+        <button id="alba-modal-save" class="primary-btn">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ★ 사장님 화면 -->
+  <div id="boss-screen" class="full-screen hidden">
+    <!-- 최초 설정 -->
+    <div id="boss-setup" class="setup-container hidden">
+      <button class="back-btn back-to-role-btn">← 역할 선택</button>
+      <h2 class="setup-title">업장 정보 입력</h2>
+      <div class="form-group">
+        <label class="form-label">업장 이름</label>
+        <input type="text" id="boss-shop-input" class="form-input" placeholder="예: 편의점, 카페">
+      </div>
+      <div class="section-title" style="margin-top:28px">알바생 추가</div>
+      <div id="worker-list-setup" class="worker-list-setup"></div>
+      <div class="add-worker-row">
+        <input type="text" id="new-worker-name" class="form-input" placeholder="이름">
+        <input type="number" id="new-worker-wage" class="form-input" placeholder="시급" min="0">
+        <button id="add-worker-btn" class="secondary-btn">+ 추가</button>
+      </div>
+      <button id="boss-setup-save" class="primary-btn" style="margin-top:28px">저장하고 시작</button>
+    </div>
+
+    <!-- 사장님 메인 -->
+    <div id="boss-main" class="hidden">
+      <div class="app-header">
+        <button class="back-to-role-btn icon-btn">←</button>
+        <span id="boss-shop-name-display" class="header-title">내 업장</span>
+        <button id="boss-reset-btn" class="icon-btn">⚙️</button>
+      </div>
+      <div class="tab-nav">
+        <button class="tab-btn active" data-target="boss-home-content">홈</button>
+        <button class="tab-btn" data-target="boss-workplace-content">내 업장</button>
+      </div>
+      <div class="tab-body">
+        <!-- 사장님 홈 탭 -->
+        <div id="boss-home-content" class="tab-content">
+          <div class="month-nav">
+            <button id="boss-home-prev" class="month-nav-btn">‹</button>
+            <span id="boss-home-month-label" class="month-label-text">2026년 5월</span>
+            <button id="boss-home-next" class="month-nav-btn">›</button>
+          </div>
+          <div class="salary-hero-card">
+            <p class="salary-label">이번달 지출 예상 급여</p>
+            <h2 class="salary-amount" id="boss-total-payout">₩0</h2>
+          </div>
+          <div class="section-title">알바생별 급여 현황</div>
+          <div id="boss-worker-pay-list" class="worker-pay-list"></div>
+        </div>
+
+        <!-- 내 업장 탭 -->
+        <div id="boss-workplace-content" class="tab-content hidden">
+          <div class="month-nav">
+            <button id="boss-cal-prev" class="month-nav-btn">‹</button>
+            <span id="boss-cal-month-label" class="month-label-text">2026년 5월</span>
+            <button id="boss-cal-next" class="month-nav-btn">›</button>
+          </div>
+          <div id="boss-calendar-grid" class="calendar-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 날짜 상세 패널 (사장님) -->
+    <div id="boss-date-panel" class="modal-overlay hidden">
+      <div class="modal-sheet boss-modal-sheet">
+        <div class="modal-header">
+          <span id="boss-panel-date-title" class="modal-title">5월 13일</span>
+          <button id="boss-panel-close" class="close-btn">✕</button>
+        </div>
+
+        <div class="section-title">근무 스케줄</div>
+        <div id="boss-schedule-list" class="schedule-list"></div>
+
+        <div class="add-shift-row">
+          <select id="shift-worker-select" class="form-select"></select>
+          <input type="number" id="shift-hours-input" class="form-input small" placeholder="시간" min="0" max="24" step="0.5">
+          <button id="add-shift-btn" class="secondary-btn">추가</button>
+        </div>
+
+        <div class="panel-divider"></div>
+
+        <div class="section-title">이달의 급여</div>
+        <div id="boss-monthly-pay-list" class="monthly-pay-list"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="main.js"></script>
   <script src="game3d.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
